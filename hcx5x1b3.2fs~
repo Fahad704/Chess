@@ -1,0 +1,551 @@
+#pragma once
+#include <iostream>
+#include "SFML\Graphics.hpp"
+#include "SFML\Window.hpp"
+#include "SFML\Audio.hpp"
+#include "Utility.cpp"
+int checkMove(std::string);
+void addOccupiedDirection(int, std::vector<int>&, Direction);
+sf::Vector2f getPositionFromIndex(int);
+int getIndexFromPos(sf::Vector2f);
+sf::Vector2f coord(char, char);
+void move(std::string);
+bool isLegalMove(std::string);
+void loadPosition();
+std::string chessSquare(sf::Vector2f);
+std::vector<int> getOccupiedSquares(bool);
+//Position to Index
+std::vector<Square> getLegalSquares(Piece piece) {
+	std::vector<Square> legalsq;
+	Square mov_square;
+	switch (abs(piece.code))
+	{
+	case PAWN: {
+		std::string oldSquare = piece.square.square;
+		//Two square move
+		std::string newSquare = chessSquare(sf::Vector2f(coord(piece.square.square[0], piece.square.square[1]).x, coord(piece.square.square[0], piece.square.square[1]).y + (piece.isWhite ? -int(pos_size * 2) : int(pos_size * 2))));//two square Move
+		std::string str = oldSquare + newSquare;
+		if (isLegalMove(str)) {
+			mov_square.square = newSquare;
+			mov_square.pos = coord(newSquare[0], newSquare[1]);
+			legalsq.push_back(mov_square);
+		}
+
+		//one square move
+		newSquare = chessSquare(sf::Vector2f(coord(piece.square.square[0], piece.square.square[1]).x, coord(piece.square.square[0], piece.square.square[1]).y + (piece.isWhite ? -int(pos_size) : int(pos_size))));
+		str = oldSquare + newSquare;
+		if (isLegalMove(str)) {
+			mov_square.square = newSquare;
+			mov_square.pos = coord(newSquare[0], newSquare[1]);
+			legalsq.push_back(mov_square);
+		}
+
+		//one cross_right
+		newSquare = chessSquare(sf::Vector2f(coord(piece.square.square[0], piece.square.square[1]).x + int(pos_size), coord(piece.square.square[0], piece.square.square[1]).y + (piece.isWhite ? -int(pos_size) : int(pos_size))));
+		str = oldSquare + newSquare;
+		if (isLegalMove(str)) {
+			mov_square.square = newSquare;
+			mov_square.pos = coord(newSquare[0], newSquare[1]);
+			legalsq.push_back(mov_square);
+		}
+
+		//one cross_left
+		newSquare = chessSquare(sf::Vector2f(coord(piece.square.square[0], piece.square.square[1]).x - int(pos_size), coord(piece.square.square[0], piece.square.square[1]).y + (piece.isWhite ? -int(pos_size) : int(pos_size))));
+		str = oldSquare + newSquare;
+		if (isLegalMove(str)) {
+			mov_square.square = newSquare;
+			mov_square.pos = coord(newSquare[0], newSquare[1]);
+			legalsq.push_back(mov_square);
+		}
+	}break;
+	case ROOK: {
+		std::string oldSquare = piece.square.square;
+		std::string newSquare;
+		std::vector<int> occupiedSquares = {};
+		int index = getIndexFromPos(piece.sprite.getPosition());
+		//TOP
+		Direction direction = TOP;
+		addOccupiedDirection(index, occupiedSquares, direction);
+		//BOTTOM
+		direction = BOTTOM;
+		addOccupiedDirection(index, occupiedSquares, direction);
+		//LEFT
+		direction = LEFT;
+		addOccupiedDirection(index, occupiedSquares, direction);
+		//RIGHT
+		direction = RIGHT;
+		addOccupiedDirection(index, occupiedSquares, direction);
+
+		std::string str;
+		for (int occsq : occupiedSquares) {
+			//std::cout << occsq << " ";
+			newSquare = chessSquare(getPositionFromIndex(occsq));
+			//std::cout << newSquare << std::endl;
+			str = oldSquare + newSquare;
+
+			if (isLegalMove(str)) {
+				mov_square.square = newSquare;
+				mov_square.pos = coord(newSquare[0], newSquare[1]);
+				legalsq.push_back(mov_square);
+			}
+		}
+	}break;
+	default:
+		break;
+	}
+	return legalsq;
+}
+int getIndexFromPos(sf::Vector2f pos) {
+	pos -= additional;
+	int x = int(pos.x / pos_size);
+	int y = int(pos.y / pos_size);
+	int index = (y * 8) + x;
+	return index;
+}
+//Checks if king of given color is in check
+bool isKingInCheck(bool isWhite) {
+	const int kingIndex = isWhite ? 28 : 4;
+	std::vector<int> occsq = getOccupiedSquares(!isWhite);
+	for (int i = 0; i < occsq.size(); i++) {
+		if (occsq[i] == getIndexFromPos(piece[kingIndex].sprite.getPosition())) return 1;
+	}
+
+	return 0;
+}
+//Index to Row
+int getRowFromIndex(int index) {
+	int row = (int)(index / 8);
+	row++;
+	if (row > 8)
+		row = 8;
+
+	return row;
+}
+//Checks if given index(of square) is Occupied or not
+bool isSquareOccupied(int index) {
+	for (int i = 0; i < 32; i++) {
+		if (getIndexFromPos(piece[i].sprite.getPosition()) == index) {
+			if ((i == selected) && isMove) continue;
+			return true;
+		}
+	}
+	return false;
+}
+//Checks if given position(of square) is Occupied or not
+bool isSquareOccupied(sf::Vector2f pos) {
+	for (int i = 0; i < 32; i++) {
+		if (piece[i].sprite.getPosition() == pos) {
+			if ((i == selected) && isMove) continue;
+			return true;
+		}
+	}
+	return false;
+}
+//Index to Column
+int getColumnFromIndex(int index) {
+	int row = getRowFromIndex(index);
+	index -= ((row - 1) * 8);
+	return index + 1;
+}
+//Adds Non-Occupied squares of given direction in a given array
+void addOccupiedDirection(int index, std::vector<int>& occsq, Direction dir) {
+	bool isDiagonal = true;
+	if (dir == TOP || dir == BOTTOM || dir == LEFT || dir == RIGHT) {
+		isDiagonal = false;
+	}
+	if (isDiagonal) {
+		int x_limit = 1, y_limit = 1;
+		if (dir == TOP_LEFT) {
+			x_limit = 1;
+			y_limit = 1;
+		}
+		else if (dir == TOP_RIGHT) {
+			x_limit = 8;
+			y_limit = 1;
+		}
+		else if (dir == BOTTOM_LEFT) {
+			x_limit = 1;
+			y_limit = 8;
+		}
+		else if (dir == BOTTOM_RIGHT) {
+			x_limit = 8;
+			y_limit = 8;
+		}
+		int temp_index = index + dir;
+		while (getColumnFromIndex(temp_index - dir) != x_limit && getRowFromIndex(temp_index - dir) != y_limit) {
+			if (isSquareOccupied(temp_index)) {
+				occsq.push_back(temp_index);
+				break;
+			}
+			occsq.push_back(temp_index);
+			temp_index += dir;
+
+		}
+	}
+	else {
+		bool isVertical = false;
+		if (dir == TOP || dir == BOTTOM) {
+			isVertical = true;
+		}
+		int temp_index = index + dir;
+		if (isVertical) {
+			while (getRowFromIndex(temp_index - dir) != (dir == TOP ? 1 : 8)) {
+				if (isSquareOccupied(temp_index)) {
+					occsq.push_back(temp_index);
+					break;
+				}
+				occsq.push_back(temp_index);
+				temp_index += dir;
+
+			}
+		}
+		else {
+			while (getColumnFromIndex(temp_index - dir) != (dir == LEFT ? 1 : 8)) {
+				if (isSquareOccupied(temp_index)) {
+					occsq.push_back(temp_index);
+					break;
+				}
+				occsq.push_back(temp_index);
+				temp_index += dir;
+
+			}
+		}
+	}
+	std::sort(occsq.begin(), occsq.end());
+	occsq.erase(std::unique(occsq.begin(), occsq.end()), occsq.end());
+}
+//Index to Position
+sf::Vector2f getPositionFromIndex(int index) {
+	int row = getRowFromIndex(index);
+	int col = getColumnFromIndex(index);
+	row--, col--;
+
+	sf::Vector2f pos = sf::Vector2f(col * pos_size, row * pos_size) + additional;
+	return pos;
+}
+//Intitalizes the game
+void initGame() {
+	int k = 0;
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			square[k].pos = sf::Vector2f(pos_size * j, pos_size * i) + additional;
+			square[k].square = chessSquare(square[k].pos);
+			k++;
+		}
+	}
+	k = 0;
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			int n = board[i][j];
+			if (!n) continue;
+			int x = abs(n) - 1;
+			int y = n > 0 ? 1 : 0;
+			piece[k].isWhite = bool(y);
+			piece[k].code = n;
+			piece[k].isFirst = true;
+			piece[k].sprite.setTextureRect(sf::IntRect(int(size * x), int(size_y * y), int(size), int(size_y)));
+			piece[k].sprite.setPosition(sf::Vector2f(pos_size * j, pos_size * i) + additional);
+			piece[k].sprite.setScale(sf::Vector2f(scale, scale));
+			k++;
+		}
+
+	}
+}
+//Main notation string which is loaded every frame
+std::string position = "";
+
+//Loads Position (called every frame)
+void loadPosition() {
+	for (int y = 0; y < 8; y++) {
+		for (int x = 0; x < 8; x++) {
+			board[y][x] = startingPos[y][x];
+		}
+	}
+	score = 0;
+	int k = 0;
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			int n = board[i][j];
+			if (!n) continue;
+			int x = abs(n) - 1;
+			int y = n > 0 ? 1 : 0;
+			piece[k].isWhite = bool(y);
+			piece[k].isFirst = true;
+			piece[k].code = n;
+			piece[k].sprite.setTextureRect(sf::IntRect(int(size * x), int(size_y * y), int(size), int(size_y)));
+			piece[k].sprite.setPosition(sf::Vector2f(pos_size * j, pos_size * i) + additional);
+			piece[k].sprite.setScale(sf::Vector2f(scale, scale));
+			k++;
+		}
+	}
+	for (int i = 0; i < int(position.length()); i += 5) {
+		move(position.substr(i, 4));
+	}
+	for (int i = 0; i < 32; i++) {
+		for (int j = 0; j < 64; j++) {
+			if (square[j].square == chessSquare(piece[i].sprite.getPosition())) {
+				piece[i].square = square[j];
+			}
+		}
+	}
+}
+//Poition to Notation
+std::string chessSquare(sf::Vector2f p) {
+	p -= additional;
+	std::string s = "";
+	s += char(p.x / pos_size + 97);
+	s += char(7 - (p.y / pos_size) + 49);
+	return s;
+}
+//Reverses Previous Move
+void back() {
+	if (int(position.length())) {
+		position.erase(position.length() - 5, 5);
+		isWhiteTurn = !isWhiteTurn;
+		loadPosition();
+	}
+}
+//Notation to Poition
+sf::Vector2f coord(char a, char b) {
+	int x = (int(a) - 97);
+	int y = (7 - int(b) + 49);
+	sf::Vector2f result = (sf::Vector2f(x * pos_size, y * pos_size) + additional);
+	return result;
+}
+int toScore(int code) {
+	int number = 0;
+	bool isWhite = code > 0 ? true : false;
+	switch (abs(code)) {
+	case ROOK: {
+		number = 5;
+	}break;
+	case KNIGHT: {
+		number = 3;
+	}break;
+	case BISHOP: {
+		number = 3;
+	}break;
+	case QUEEN: {
+		number = 9;
+	}break;
+	case KING: {
+		number = 0;
+	}break;
+	default: {
+		number = 0;
+	}
+	}
+	if (isWhite) number = -number;
+
+	return number;
+}
+//Moves given notation as string
+void move(std::string str) {
+	sf::Vector2f oldPos = coord(str[0], str[1]);
+	sf::Vector2f newPos = coord(str[2], str[3]);
+
+	int movedPiece = -10;
+	bool occupiedPiece = false;
+
+	//Capture
+	for (int i = 0; i < 32; i++) {
+		if (piece[i].sprite.getPosition() == newPos) {
+			piece[i].sprite.setPosition(-100, -100);
+			score += toScore(piece[i].code);
+			piece[i].square.square = "null";
+			occupiedPiece = true;
+		}
+	}
+
+	//Moving Piece
+	for (int i = 0; i < 32; i++) {
+		if (piece[i].sprite.getPosition() == oldPos) {
+			movedPiece = i;
+			if (abs(piece[i].code) == PAWN || abs(piece[i].code) == ROOK || abs(piece[i].code) == KING) {
+				piece[i].isFirst = false;
+			}
+			piece[i].sprite.setPosition(newPos);
+		}
+	}
+	// Promotion
+	if (abs(piece[movedPiece].code) == PAWN) {
+		if (str[3] == '8' || str[3] == '1') {
+			int row = getRowFromIndex(movedPiece);
+			int column = getColumnFromIndex(movedPiece);
+			row--, column--;
+			board[row][column] = piece[movedPiece].isWhite ? 4 : -4;
+			piece[movedPiece].code = piece[movedPiece].isWhite ? 4 : -4;
+			piece[movedPiece].sprite.setTextureRect(sf::IntRect(int(size * 3), (piece[movedPiece].isWhite ? int(size_y) : 0), int(size), int(size_y)));
+			piece[movedPiece].isWhite ? score += 9 : score -= 9;
+
+		}
+		else if (abs(oldPos.x - newPos.x) == int(pos_size)) {
+			if (str[3] == '6' || str[3] == '3')
+				for (int i = 0; i < 32; i++) {
+					if (piece[i].sprite.getPosition() == sf::Vector2f(newPos.x, oldPos.y) && abs(piece[i].code) == PAWN) {
+						piece[i].sprite.setPosition(-100, -100);
+						piece[i].square.square = "null";
+					}
+				}
+		}
+	}
+
+	if (str.substr(2, 2) == "CS") {
+		//castle movement
+		if (str == "WSCS") {
+			piece[28].sprite.setPosition(coord('g', '1'));
+			piece[31].sprite.setPosition(coord('f', '1'));
+		}
+		else if (str == "WLCS") {
+			piece[28].sprite.setPosition(coord('c', '1'));
+			piece[24].sprite.setPosition(coord('d', '1'));
+		}
+		else if (str == "BSCS") {
+			piece[4].sprite.setPosition(coord('g', '8'));
+			piece[7].sprite.setPosition(coord('f', '8'));
+		}
+		else if (str == "BLCS") {
+			piece[4].sprite.setPosition(coord('c', '8'));
+			piece[0].sprite.setPosition(coord('d', '8'));
+		}
+	}
+
+}
+//Returns occupied squares of given color
+std::vector<int> getOccupiedSquares(bool White) {
+	std::vector<int> occupiedSquares = {};
+	const int first = 1;
+	const int last = 8;
+	int index = -10;
+	int start = 0, end = 0;
+	if (White) {
+		start = 16, end = 32;
+	}
+	else {
+		start = 0, end = 16;
+	}
+	for (int i = start; i < end; i++) {
+		if (piece[i].square.square == "null") continue;
+		switch (abs(piece[i].code)) {
+		case PAWN: {
+			index = getIndexFromPos(piece[i].sprite.getPosition());
+			if (getColumnFromIndex(index) > 1)occupiedSquares.push_back(index + (White ? TOP_LEFT : BOTTOM_LEFT));
+			if (getColumnFromIndex(index) < 8)occupiedSquares.push_back(index + (White ? TOP_RIGHT : BOTTOM_RIGHT));
+
+		}break;
+		case KNIGHT: {
+			index = getIndexFromPos(piece[i].sprite.getPosition());
+			if (getColumnFromIndex(index) > 2 && getRowFromIndex(index) < 8)occupiedSquares.push_back(index + 6);
+			if (getColumnFromIndex(index) < 7 && getRowFromIndex(index) < 8)occupiedSquares.push_back(index + 10);
+			if (getColumnFromIndex(index) > 1 && getRowFromIndex(index) < 7)occupiedSquares.push_back(index + 15);
+			if (getColumnFromIndex(index) < 8 && getRowFromIndex(index) < 7)occupiedSquares.push_back(index + 17);
+			if (getColumnFromIndex(index) < 7 && getRowFromIndex(index) > 1)occupiedSquares.push_back(index - 6);
+			if (getColumnFromIndex(index) > 2 && getRowFromIndex(index) > 1)occupiedSquares.push_back(index - 10);
+			if (getColumnFromIndex(index) < 8 && getRowFromIndex(index) > 2)occupiedSquares.push_back(index - 15);
+			if (getColumnFromIndex(index) > 1 && getRowFromIndex(index) > 2)occupiedSquares.push_back(index - 17);
+
+		}break;
+		case KING: {
+			index = getIndexFromPos(piece[i].sprite.getPosition());
+			if (getColumnFromIndex(index) > 1 && getRowFromIndex(index) < 8) occupiedSquares.push_back(index + BOTTOM_LEFT);
+			if (getColumnFromIndex(index) > 1 && getRowFromIndex(index) > 1)occupiedSquares.push_back(index + TOP_LEFT);
+			if (getColumnFromIndex(index) < 8 && getRowFromIndex(index) < 8)occupiedSquares.push_back(index + BOTTOM_RIGHT);
+			if (getColumnFromIndex(index) < 8 && getRowFromIndex(index) > 1)occupiedSquares.push_back(index + TOP_RIGHT);
+			if (getRowFromIndex(index) < 8)occupiedSquares.push_back(index + BOTTOM);
+			if (getRowFromIndex(index) > 1)occupiedSquares.push_back(index + TOP);
+			if (getColumnFromIndex(index) < 8)occupiedSquares.push_back(index + RIGHT);
+			if (getColumnFromIndex(index) > 1)occupiedSquares.push_back(index + LEFT);
+
+		}break;
+		case BISHOP: {
+			int index = getIndexFromPos(piece[i].sprite.getPosition());
+			//top right
+			Direction direction = TOP_RIGHT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//top left
+			direction = TOP_LEFT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//bottom left
+			direction = BOTTOM_LEFT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//bottom right
+			direction = BOTTOM_RIGHT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+
+		}break;
+		case ROOK: {
+			int index = getIndexFromPos(piece[i].sprite.getPosition());
+			//TOP
+			Direction direction = TOP;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//BOTTOM
+			direction = BOTTOM;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//LEFT
+			direction = LEFT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//RIGHT
+			direction = RIGHT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+
+		}break;
+		case QUEEN: {
+			int index = getIndexFromPos(piece[i].sprite.getPosition());
+			//TOP
+			Direction direction = TOP;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//BOTTOM
+			direction = BOTTOM;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//LEFT
+			direction = LEFT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//RIGHT
+			direction = RIGHT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+
+			//top right
+			direction = TOP_RIGHT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//top left
+			direction = TOP_LEFT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//bottom right
+			direction = BOTTOM_RIGHT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+			//bottom left
+			direction = BOTTOM_LEFT;
+			addOccupiedDirection(index, occupiedSquares, direction);
+
+		}break;
+		}
+	}
+	return occupiedSquares;
+}
+bool isLegalMove(std::string str) {
+	sf::Vector2f oldPos = coord(str[0], str[1]);
+	sf::Vector2f newPos = coord(str[2], str[3]);
+	bool isWrongMove = false;
+	if (oldPos != newPos) {
+		str = chessSquare(oldPos) + chessSquare(newPos);
+		position += str + " ";
+		if (!checkMove(str)) {
+			back();
+
+			return 0;
+		}
+		//Change Turn
+		isWhiteTurn = !isWhiteTurn;
+		loadPosition();
+		if (isKingInCheck(!isWhiteTurn)) {
+
+			back();
+			loadPosition();
+			return 0;
+		}
+		back();
+		return 1;
+	}
+	return 0;
+	
+}
