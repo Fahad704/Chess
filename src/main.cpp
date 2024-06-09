@@ -170,6 +170,7 @@ int main() {
 									isCapture = true;
 								}
 								if (!checkMove(str)) {
+									std::cout << "[!] Wrong Move : " << str << "\n";
 									isWrongMove = true;
 									board_changed = false;
 									isCapture = false;
@@ -178,9 +179,10 @@ int main() {
 								//Change Turn
 								isWhiteTurn = !isWhiteTurn;
 							}
-							//loadPosition();
+							loadPosition();
 							isMove = false;
 							if (!isWrongMove && isKingInCheck(!isWhiteTurn)) {
+								std::cout << "[!] Your King is in check after this move : " << str << "\n";
 								board_changed = false;
 								isCapture = false;
 								back();
@@ -233,6 +235,11 @@ int main() {
 				}
 				else if (event.key.code == sf::Keyboard::A) {
 					isLogOn = !isLogOn;
+				}
+				else if (event.key.code == sf::Keyboard::Space) {
+					std::string fen = fenPosition();
+					std::cout << fen<<"\n";
+					std::cout << position << "\n";
 				}
 			}break;
 			case sf::Event::Resized: {

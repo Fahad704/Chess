@@ -402,7 +402,7 @@ inline bool isKingInCheck(bool isWhite) {
 	const int kingIndex = isWhite ? 28 : 4;
 	std::vector<int> occsq = getOccupiedSquares(!isWhite);
 	for (int i = 0; i < occsq.size(); i++) {
-		if (occsq[i] == getIndexFromPos(piece[kingIndex].sprite.getPosition())) return 1;
+		if (occsq[i] == getIndexFromPos(piece[kingIndex].square.pos)) return 1;
 	}
 
 	return 0;

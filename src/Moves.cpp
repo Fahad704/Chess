@@ -416,7 +416,9 @@ inline bool checkMove(std::string str) {
 					return 0;
 				}
 				else {
-					if (isKingInCheck(isWhite)) return 0;
+					if (isKingInCheck(isWhite)) {
+						return 0;
+					}
 					return 1;
 				}
 			}
@@ -446,11 +448,14 @@ inline bool checkMove(std::string str) {
 		if (!isRookMove(oldPos, newPos) && !isBishopMove(oldPos,newPos))
 			return 0;
 		break;
-	case KING:
-		if (!isCastle(oldPos, newPos, movedPiece, occupyingPiece))
-			if (!isKingMove(oldPos, newPos, isWhite))
-				return 0;
-		break;
+	case KING: {
+		if (!isKingMove(oldPos, newPos, isWhite) && !isCastle(oldPos, newPos, movedPiece, occupyingPiece)) {
+			return 0;
+		}
+		else if (isCastle(oldPos, newPos, movedPiece, occupyingPiece) && isKingInCheck(isWhite)){
+			return 0;
+		}
+	}break;
 	case PAWN:
 		if (!isPawnMove(oldPos, newPos,movedPiece,occupyingPiece))
 			return 0;
