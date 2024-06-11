@@ -1,7 +1,6 @@
-# Chess
-A simple chess game made using SFML library<br>
-still under progress
-
+# Chess with SFML and C++
+A simple chess game made using SFML library
+### <a href="https://github.com/Fahad704/Chess/releases">Download</a><br>
 # Things to do if you want to contribute
 <details>
   <summary>Stockfish integration</summary>
