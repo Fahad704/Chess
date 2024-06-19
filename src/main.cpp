@@ -2,8 +2,27 @@
 #include "Utility.cpp"
 #include "functions.cpp"
 #include "Moves.cpp"
+#include <fstream>
 
 int main() {
+	{
+		std::ifstream SaveFile("ChessSave.txt");
+		std::getline(SaveFile, position);
+		int count = 0;
+		for (int i = 0; i < position.length(); i++) {
+			if (position[i] == ' ') {
+				count++;
+			}
+		}
+		if (count % 2 == 0) {
+			isWhiteTurn = true;
+		}
+		else
+		{
+			isWhiteTurn = false;
+		}
+		SaveFile.close();
+	}
 	bool debug = false;
 	sf::Font Venite;
 	Venite.loadFromFile("Assets/font.ttf");
@@ -387,7 +406,7 @@ int main() {
 
 					menu_text.setFillColor(sf::Color::White);
 					menu_text.setString("back");
-					menu_text.setPosition(300,350);
+					menu_text.setPosition(300, 350);
 					if (menu_text.getGlobalBounds().contains(pos.x, pos.y)) {
 						menu_text.setFillColor(sf::Color::Red);
 						if (leftClicked) {
@@ -427,14 +446,22 @@ int main() {
 			play_game = menu_text.getGlobalBounds();
 			if (play_game.contains(sf::Vector2f(pos.x - xOffset, pos.y))) {
 				menu_text.setFillColor(sf::Color::Red);
-				if(leftClicked)
+				if (leftClicked)
 					gamemode = GM_GAMEPLAY;
 			}
 			window.draw(menu_text);
-		} 
+		}
 		//Display
 		window.display();
 
 	}
+
+	{
+		std::ofstream SaveFile("ChessSave.txt");
+		remove("ChessSave.txt");
+		SaveFile << position;
+		SaveFile.close();
+	}
+	
 	return 0;
 }
